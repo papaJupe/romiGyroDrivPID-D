@@ -1,10 +1,11 @@
-// RomigyroDrivPID - D                    Robot.j
+// RomigyroDrivPID - D                              Robot.j
 
-// v. C -- WPI PIDcontroller for drive & turn, PWM motor, cmd/subsys framewk.
 // v. D (this) - simplify to flat framework, no cmd or subsys, all in robot.j
 // --> works OK, PID controllers for straight driving and auto turning to
-// some angle. Turns still erratic. autoPeriodic does not end properly. RC
-// left here for reference, does nothing; other unused classes deleted.
+// some angle. Turns still erratic. autoPeriodic does not end properly --
+// Cmd run and canceled does not stop it. aP fails to recognize WaitCmds
+// RC left here for reference, does nothing; other unused classes deleted.
+// v. C -- WPI PIDcontroller for drive & turn, PWM motor, cmd/subsys framewk.
 
 // For live vision, attach camera to any pi port; its cam server streams
 // automatically to pi web interface: wpilibpi.local:1181 or mpeg stream,
@@ -20,25 +21,27 @@ import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.motorcontrol.Spark;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.PrintCommand;
+import edu.wpi.first.wpilibj2.command.WaitCommand;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 
-//import frc.robot.Constant;
 import frc.robot.OnBoardIO.ChannelMode;
 import frc.robot.sensors.RomiGyro;
 
 /**
  * The VM is configured to automatically run this class, calling the
  * functions corresponding to each mode, as described in TimedRobot docs.
- * -- very little here specific to any one robot --
+ * all robot config set in Robot.j ----normally little specifics here 
  */
 public class Robot extends TimedRobot {
 
   // instance joystick @ 0 --assumes controller plugged into USB 0
   private final XboxController m_controller = new XboxController(0);
 
-  private final OnBoardIO m_onboardIO = new OnBoardIO(ChannelMode.INPUT, ChannelMode.INPUT);
+  private final OnBoardIO m_onboardIO = new OnBoardIO
+       (ChannelMode.INPUT, ChannelMode.INPUT);
 
   private final double kCountsPerRevolution = 1440.0;
   private final double kWheelDiameterInch = 2.75591; // 70 mm
@@ -49,7 +52,8 @@ public class Robot extends TimedRobot {
   private final Spark m_rightMotor = new Spark(1);
 
   /// DD class has aD() method, default deadband 0.02, squares inputs]
-  public final DifferentialDrive m_Drive = new DifferentialDrive(m_leftMotor, m_rightMotor);
+  public final DifferentialDrive m_Drive = 
+       new DifferentialDrive(m_leftMotor, m_rightMotor);
 
   // The Romi's onboard encoders are hardcoded to DIO pins 4/5 and 6/7
   public static Encoder m_leftEncoder = new Encoder(4, 5);
@@ -63,12 +67,16 @@ public class Robot extends TimedRobot {
   private String m_autoSelected; // returned by SmdDash for use in autoInit
 
   // PID control to drive straight...
-  private final PIDController piDriv = new PIDController(Constant.kStabilP, Constant.kStabilI, Constant.kStabilD);
+  private final PIDController piDriv = new PIDController
+       (Constant.kStabilP, Constant.kStabilI, Constant.kStabilD);
   // ... turn to some angle
   private final PIDController pidTurn = new PIDController
-              (Constant.kTurnP, Constant.kTurnI, Constant.kTurnD);
+             (Constant.kTurnP, Constant.kTurnI, Constant.kTurnD);
 
-     /*
+  private Command stopIt;
+  Boolean goBack = false;
+
+  /*
    * roboInit runs when the robot is first started and does all init's of
    * this robot's specifics (things done in RC in subsys framework)
    */
@@ -85,8 +93,9 @@ public class Robot extends TimedRobot {
     // gearbox is constructed, you might have to invert left side instead.
     m_rightMotor.setInverted(true);
 
-    m_chooser.setDefaultOption("Drive+Turn180", "DRIV&TURN");
+    m_chooser.setDefaultOption("Drive&Turn180", "DRIV&TURN");
     m_chooser.addOption("turn180", "TURN180");
+    m_chooser.addOption("turn&return", "RETURN");
     SmartDashboard.putData("AutoSelect ", m_chooser);
 
     // Use inches as unit for encoder distances
@@ -101,21 +110,21 @@ public class Robot extends TimedRobot {
 
     // the delta tolerance ensures the robot is stable at the
     // setpoint before it's counted as reaching the reference
-    piDriv.setTolerance(1, 2);
+    piDriv.setTolerance(1, 2); // degree set Tol., deg/sec rate Tol.
+
+    // stopIt = new InstantCommand( () -> m_Drive.arcadeDrive(0,0));
+    stopIt = new PrintCommand("StoppingAuto");
 
     pidTurn.enableContinuousInput(-180, 180);
-    pidTurn.setTolerance(2, 2);
+    pidTurn.setTolerance(2, 2); // deg, deg/sec
   } // end robotInit()
 
   // This function is called every robot packet, no matter the mode.
-  // Use for things that you want run during all modes like diagnostics.
-  // This runs after the mode specific periodic functions, but before
-  // LiveWindow and SmartDashboard integrated updating.
   @Override
   public void robotPeriodic() { // normally ... in cmd/subsys paradigm:
-    // Calls the Scheduler <-- this is responsible for polling buttons, adding
-    // newly-scheduled commands, running now-scheduled commands, removing
-    // finished or interrupted commands, and running subsystem periodics.
+// Calls the Scheduler <-- this is responsible for polling buttons, adding
+// newly-scheduled commands, running now-scheduled commands, removing
+// finished or interrupted commands, and running subsystem periodics.
     // Must be here for anything in the Command-based framework to work.
     // ... in flat framework will run essential stuff regardless of mode
     if (m_controller.getRawButton(1)) // [xbox button A]
@@ -129,7 +138,7 @@ public class Robot extends TimedRobot {
       m_Drive.arcadeDrive(-m_controller.getLeftY() * 0.6,
           -piDriv.calculate(m_gyro.getAngleZ(), 0));
     }
-
+    CommandScheduler.getInstance().run();
   } // end robotPeriodic
 
   // This function is called once each time the robot enters Disabled mode.
@@ -138,8 +147,8 @@ public class Robot extends TimedRobot {
   }
 
   @Override // incessant (-) drift, so to reset manually in disabled,
-            // you can press button 1 [xbox button A]: --try in rP first
-  public void disabledPeriodic() {
+            // you can press button 1 [xbox button A]:
+  public void disabledPeriodic() { // works from rP, no need here
     // if (m_controller.getRawButton(1))
     // m_gyro.reset();
   }
@@ -152,39 +161,62 @@ public class Robot extends TimedRobot {
     m_leftEncoder.reset();
     m_rightEncoder.reset();
     m_gyro.reset();
+    goBack = false;
+
   } // end autoInit
 
   /** This function is called periodically during autonomous. */
   @Override
   public void autonomousPeriodic() {
-    switch (m_autoSelected) { // sequence built by changing this var
+    switch (m_autoSelected) { // sequence built by changing this var inline
+
+      case "RETURN":
+        goBack = true;
+        m_autoSelected = "DRIV&TURN";
+        break;
       case "DRIV&TURN":
-        // drive strait 36", stop when there, change autoselec to turn180
-        // double gyroAdjust = m_gyro.getAngleZ() * kStabilD;
-        m_Drive.arcadeDrive(0.6, -piDriv.calculate(m_gyro.getAngleZ(), 0));
-        if (m_leftEncoder.getDistance() + m_rightEncoder.getDistance() / 2 >= 36) {
+        // drive straight 36", stop when there, change autoselec to turn180
+        m_Drive.arcadeDrive(0.6, -piDriv.calculate
+             (m_gyro.getAngleZ(), 0));
+        if (m_leftEncoder.getDistance() + m_rightEncoder.getDistance()
+              / 2 >= 36) {
           m_Drive.arcadeDrive(0, 0);
+          new WaitCommand(5);
           m_gyro.reset();
           m_autoSelected = "TURN180";
-          break;
+
         }
         break;
       case "TURN180":
-        // Pipe output to turn robot in place, should turn CW for + setpoint
-        m_Drive.arcadeDrive(0, -pidTurn.calculate(m_gyro.getAngleZ(), -179));
+        // Pipe output to turn robot in place, should turn CCW for (-) setpoint
+        m_Drive.arcadeDrive(0, -pidTurn.calculate
+             (m_gyro.getAngleZ(), -178));
         if (pidTurn.atSetpoint()) {
           m_Drive.arcadeDrive(0, 0);
-          m_autoSelected = "end";
-        }
+          new WaitCommand(5);
+          if (goBack) {
+            m_autoSelected = "DRIV&TURN"; // do it again
+            goBack = false; // don't do it again
+            m_leftEncoder.reset();
+            m_rightEncoder.reset();
+            m_gyro.reset();
+            // break;
+          } // end repeat block
+          else {
+            m_autoSelected = "end";
+            stopIt.schedule(); // tried Cmd here to stop auto next loop
+          } // end else try to end
+        } // end if @setpt
         break;
       case "end":
-         CommandScheduler.getInstance().cancelAll();
-         break;
+        stopIt.cancel();  // does not stop aP, does not go to teleopInit
+        break;
       default:
         break;
-    } // when done autoSelect --> "end" which --> default and does nothing
-      // but aP still does not seem to end as it should; need some cmd to end
-      // like CommandScheduler.getInstance().cancelAll();
+    } // when done autoSelect --> "end" and stopIt() does nothing 
+      // but print somethingbut aP still does not seem to end as it should;
+      // neither stopIt.cancel() or
+      // CommandScheduler.getInstance().cancelAll() ends auto mode
   } // end autoPeriod
 
   @Override
@@ -205,7 +237,8 @@ public class Robot extends TimedRobot {
   public void teleopPeriodic() { // rt bumper button hold activates
     // gyro mode to drive straight in teleop, otherwise drifts
     m_Drive.arcadeDrive(-m_controller.getLeftY() * 0.6,
-        -m_controller.getRightX() * 0.4);
+        // -m_controller.getRightX() * 0.4);
+        -m_controller.getRawAxis(0) * 0.4);
   }
 
   @Override
@@ -214,8 +247,8 @@ public class Robot extends TimedRobot {
     // CommandScheduler.getInstance().cancelAll();
   }
 
-  /** This function is called periodically during test mode. */
   @Override
   public void testPeriodic() {
   }
 } // end class
+
