@@ -4,6 +4,11 @@
       "visible": false
     }
   },
+  "Joysticks": {
+    "window": {
+      "visible": false
+    }
+  },
   "System Joysticks": {
     "window": {
       "visible": false
@@ -101,7 +106,8 @@
   ],
   "robotJoysticks": [
     {
-      "guid": "030000005e0400003800000000000000"
+      "guid": "78696e70757401000000000000000000",
+      "useGamepad": true
     }
   ]
 }

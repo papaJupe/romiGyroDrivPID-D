@@ -13,23 +13,10 @@ import edu.wpi.first.wpilibj2.command.button.JoystickButton;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 // import edu.wpi.first.wpilibj2.command.PIDCommand;
 // import edu.wpi.first.wpilibj2.command.RunCommand;
+import frc.robot.sensors.OnBoardIO;
+import frc.robot.sensors.OnBoardIO.ChannelMode;
 
-// import frc.robot.Constant;
-// import frc.robot.Robot.*;
-//import frc.robot.Robot.m_Drive;
-import frc.robot.OnBoardIO.ChannelMode;
-// import frc.robot.subsystems.DriveSubsys;
-// import frc.robot.commands.ArcadeDrive;
-// import frc.robot.commands.TurnToAngle;
-
-/**
- * RC is where this robot specifics are defined. Since Command-based is a
- * "declarative" paradigm, very little robot logic should be handled in
- * the {@link Robot} periodic methods other than the scheduler calls.
- * Instead, the specifics of operating the robot (including
- * subsystems, commands, and button mappings) should be declared here.
- */
-public class RobotContainer {
+public class RCstub {
   // instance the two subsystems
 
   private final OnBoardIO m_onboardIO = new OnBoardIO(ChannelMode.INPUT, ChannelMode.INPUT);
@@ -48,7 +35,7 @@ public class RobotContainer {
    * Smart Dashbd Autonomous chooser options.
    * --- i.e. the specifics of this robot
    */
-  public RobotContainer() {
+  public RCstub() {
     // Configure joystick button bindings et. al.;  not clear why not
     configureButtonBindings();     // just put things in this block ?
   } // end constructor
@@ -84,8 +71,8 @@ public class RobotContainer {
     .onTrue(new InstantCommand(() -> Robot.m_gyro.reset()))
     .onTrue(new PrintCommand("Button A Press"));
 
-    // Stabilize to drive straight with gyro when left bumper is held
-    // new JoystickButton(m_controller, 5)
+    // Stabilize to drive straight with gyro when rt bumper is held
+    // new JoystickButton(m_controller, 6)
     //     .whileTrue(
     //         new PIDCommand(
     //             new PIDController(
@@ -102,13 +89,8 @@ public class RobotContainer {
     //             // Require the robot drive -- needs to be a subsystem instance
     //             Robot.m_Drive));
 
-    // in v. B pressing during auto activates gyro stabiliz
-    // new JoystickButton(m_controller, 6)
-    // .onTrue(new InstantCommand(() -> m_Drive.setGyroMode(true)))
-    // .onFalse(new InstantCommand(() -> m_Drive.setGyroMode(false)));
-
-    // Drive at half speed when the right bumper is held
-    // new JoystickButton(m_controller, 6)
+    // Drive at half speed when the L bumper is held
+    // new JoystickButton(m_controller, 5)
     //     .onTrue(new InstantCommand(() -> m_Drive.setMaxOutput(0.6)))
     //     .onFalse(new InstantCommand(() -> m_Drive.setMaxOutput(1)));
 
